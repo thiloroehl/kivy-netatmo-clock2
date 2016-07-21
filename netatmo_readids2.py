@@ -12,19 +12,21 @@ _stationData=dict()
 
 
 class netatmoreadings():
-    na_Temperature=0
+    na_Temperature=None
     na_MaxTemp=0
     na_MinTemp=0
-    na_TempTrend=""
+    na_TempTrend=None
     na_Humidity=0
     na_Pressure=0
-    na_rain=None
+    na_Rain=0
+    na_Rain_sum1=0
+    na_Rain_sum24=0
+    na_battery_base=0
     
     
-    def __init__(self, stationData=_stationData):
-        print (sd)
-        print (len(sd))
-        body=sd["body"]
+    def __init__(self, stationData):
+        print ("Hello")
+        body=stationData["body"]
         print (body)
         devices=body["devices"]
         print (devices)
@@ -55,11 +57,12 @@ class netatmoreadings():
         print ("MinTemp "+str(dashboard["min_temp"]))
         self.na_MinTemp=dashboard["min_temp"]
         print ("TempTrend "+str(dashboard["temp_trend"]))
-        self.na_TempTremp=dashboard["temp_trend"]
+        self.na_TempTrend=dashboard["temp_trend"]
         print ("Humidity "+str(dashboard["Humidity"]))
-        self.na_humidity=dashboard["Humidity"]
+        self.na_Humidity=dashboard["Humidity"]
         print ("Pressure "+str(dashboard["Pressure"]))
         self.na_Pressure=dashboard["Pressure"]
+
 
         modules=device["modules"]
         print (modules)
@@ -72,17 +75,14 @@ class netatmoreadings():
             if (m["data_type"].count('Rain')) > 0 :
                 print ("Rain found")
                 print (m["dashboard_data"]["Rain"])
+                self.na_Rain=(m["dashboard_data"]["Rain"])
                 print (m["dashboard_data"]["sum_rain_1"])
+                self.na_Rain_sum1=(m["dashboard_data"]["sum_rain_1"])
                 print (m["dashboard_data"]["sum_rain_24"])
+                self.na_Rain_sum24=(m["dashboard_data"]["sum_rain_24"])
                     
-                print (m["data_type"])
-                if m["data_type"]=="Rain":
-                    print ("Rain found")
-                    dbrain=m["dashboard_data"]
-                    print ("Rain "+str(dbrain["Rain"]))
-                    print ("Sum Rain 1"+str(dbrain["sum_rain_1"]))
-                    print ("Sum Rain 2"+str(dbrain["sum_rain_2"]))
-                    pass
+                
+                
             k=k+1
     
     
@@ -143,15 +143,14 @@ if __name__ == "__main__":
     #print (gardentemp)
     print ("Station Data")
     sd =devList.getStationdata (device_id='70:ee:50:17:4e:dc')
-    na=netatmoreadings()
-    na.__init__(sd)
+    na=netatmoreadings(sd)
+    #na.__init__(sd)
     
     
-    print ("Current Temperature")
-    print (na.na_Temperature)
+    print ("Current Temperature "+str(na.na_Temperature) + ", Temp Trend " + str(na.na_TempTrend)+ " Temp min "+ str(na.na_MinTemp) + " Temp max " + str(na.na_MaxTemp)) 
+    print ("Luftfeuchtigkeit "+ str(na.na_Humidity)+ " Regen "+ str(na.na_Rain)+ " Regen sum1 "+str(na.na_Rain_sum1)+" Regen 24 "+str (na.na_Rain_sum24))
     
-
-
+    
 
 
 
