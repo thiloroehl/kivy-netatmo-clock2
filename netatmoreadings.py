@@ -4,8 +4,11 @@ Created on 11.07.2016
 @author: muelthil
 '''
 import sys
+import json, time
 import lnetatmo2
-from kivy.modules.screen import devices
+import urllib.parse, urllib.request
+
+
  
 
 _stationData=dict()
@@ -13,77 +16,59 @@ _stationData=dict()
 
 class netatmoreadings():
     na_Temperature=None
-    na_MaxTemp=0
-    na_MinTemp=0
+    na_MaxTemp=None
+    na_MinTemp=None
     na_TempTrend=None
-    na_Humidity=0
-    na_Pressure=0
-    na_Rain=0
-    na_Rain_sum1=0
-    na_Rain_sum24=0
-    na_battery_base=0
-    
+    na_TemperatureOutdoor=None
+    na_TemperatureOutdoorMax=None
+    na_TemperatureOutdoorMin=None
+    na_TemperatureOutdoorTrend=None
+    na_HumidityOutdoor=None
+    na_Humidity=None
+    na_Pressure=None
+    na_Rain=None
+    na_Rain_sum1=None
+    na_Rain_sum24=None
+    na_battery_base_percent=None
+    na_battery_rain_percent=None
+    na_battery_outdoor_percent=None
+    modulecount=0
     
     def __init__(self, stationData):
-        print ("Hello")
         body=stationData["body"]
-        print (body)
         devices=body["devices"]
-        print (devices)
-        #print ("Length of devices "+len(devices))
         device=devices[0]
-        print (device)
         
-        i=0
-        for item in device:
-            print ("Device i "+str(i))
-            print (item)
-            i=i+1
-            
-        dashboard=device["dashboard_data"]
 
-        j=0
-        for d in dashboard:
-            print ("Dashboard j "+str(j))
-            print (d)
-            j=j+1
-                
-                
-
-        print ("Temperature "+str(dashboard["Temperature"]))
-        self.na_Temperature=dashboard["Temperature"]
-        print ("MaxTemp "+str(dashboard["max_temp"]))
-        self.na_MaxTemp=dashboard["max_temp"]
-        print ("MinTemp "+str(dashboard["min_temp"]))
-        self.na_MinTemp=dashboard["min_temp"]
-        print ("TempTrend "+str(dashboard["temp_trend"]))
-        self.na_TempTrend=dashboard["temp_trend"]
-        print ("Humidity "+str(dashboard["Humidity"]))
-        self.na_Humidity=dashboard["Humidity"]
-        print ("Pressure "+str(dashboard["Pressure"]))
-        self.na_Pressure=dashboard["Pressure"]
-
-
+        self.na_Temperature=device["dashboard_data"]["Temperature"]
+        self.na_MaxTemp=device["dashboard_data"]["max_temp"]
+        self.na_MinTemp=device["dashboard_data"]["min_temp"]
+        self.na_TempTrend=device["dashboard_data"]["temp_trend"]
+        self.na_Humidity=device["dashboard_data"]["Humidity"]
+        self.na_Pressure=device["dashboard_data"]["Pressure"]
+        
+        #dashboard=device["dashboard_data"]
         modules=device["modules"]
-        print (modules)
-
-        k=0
+        
+        
         for m in modules:
-            print ("Module m "+str(k))
-            #print (m)
-            #print ("Count of Rain in data_type " +str(m["data_type"].count('Rain')))
             if (m["data_type"].count('Rain')) > 0 :
-                print ("Rain found")
-                print (m["dashboard_data"]["Rain"])
                 self.na_Rain=(m["dashboard_data"]["Rain"])
-                print (m["dashboard_data"]["sum_rain_1"])
                 self.na_Rain_sum1=(m["dashboard_data"]["sum_rain_1"])
-                print (m["dashboard_data"]["sum_rain_24"])
                 self.na_Rain_sum24=(m["dashboard_data"]["sum_rain_24"])
+                self.na_battery_rain_percent=m["battery_percent"]
+                pass
                     
-                
-                
-            k=k+1
+            if (m["data_type"].count('Temperature')) > 0 :
+                self.na_TemperatureOutdoor=m["dashboard_data"]["Temperature"]
+                self.na_HumidityOutdoor=m["dashboard_data"]["Humidity"]
+                self.na_TemperatureOutdoorMax=m["dashboard_data"]["max_temp"]
+                self.na_TemperatureOutdoorMin=m["dashboard_data"]["min_temp"]
+                self.na_TemperatureOutdoorTrend=m["dashboard_data"]["temp_trend"]
+                self.na_battery_outdoor_percent=m["battery_percent"]
+                pass
+        
+        self.modulecount=self.modulecount+1
     
     
 
@@ -136,19 +121,20 @@ if __name__ == "__main__":
     authorization = lnetatmo2.ClientAuth()
     devList = lnetatmo2.DeviceList(authorization)
     # Funktionen um die ID von Modulen und Device zu ermitteln
-    print(devList.modulesNamesList())
+    #print(devList.modulesNamesList())
     # Niederschlag ist der Modulname meines Regenmessers
-    print(devList.moduleByName('70:ee:50:17:4e:dc'))
+    #print(devList.moduleByName('70:ee:50:17:4e:dc'))
     #gardentemp=devList.lastData()['70:ee:50:17:4e:dc']['Temperature']
     #print (gardentemp)
-    print ("Station Data")
+    #print ("Station Data")
     sd =devList.getStationdata (device_id='70:ee:50:17:4e:dc')
     na=netatmoreadings(sd)
     #na.__init__(sd)
     
-    
-    print ("Current Temperature "+str(na.na_Temperature) + ", Temp Trend " + str(na.na_TempTrend)+ " Temp min "+ str(na.na_MinTemp) + " Temp max " + str(na.na_MaxTemp)) 
-    print ("Luftfeuchtigkeit "+ str(na.na_Humidity)+ " Regen "+ str(na.na_Rain)+ " Regen sum1 "+str(na.na_Rain_sum1)+" Regen 24 "+str (na.na_Rain_sum24))
+    print ("Outdoor Temperature "+str(na.na_TemperatureOutdoor)+" Humidity "+str(na.na_HumidityOutdoor)+ " Min "+str(na.na_TemperatureOutdoorMin) + " Max "+str(na.na_TemperatureOutdoorMax)+ " Trend "+str(na.na_TemperatureOutdoorTrend))
+    print ("Indoor Temperature "+str(na.na_Temperature) + ", Temp Trend " + str(na.na_TempTrend)+ " Temp min "+ str(na.na_MinTemp) + " Temp max " + str(na.na_MaxTemp)+ " Humidity "+str(na.na_Humidity)) 
+    print ("Rain "+ str(na.na_Rain)+ " last hour sum1 "+str(na.na_Rain_sum1)+" sum 24h "+str (na.na_Rain_sum24))
+    print ("Batteries  Outdoor "+str(na.na_battery_outdoor_percent)+ " Rain "+str(na.na_battery_rain_percent))
     
     
 
