@@ -266,6 +266,7 @@ class netatmoreadings():
     modulecount=0
     
     def __init__(self, stationData):
+        print ("Netatmo init")
         body=stationData["body"]
         devices=body["devices"]
         device=devices[0]

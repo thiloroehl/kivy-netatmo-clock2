@@ -9,7 +9,10 @@ import urllib.error
 
 
 import time
-import lnetatmo
+#import netatmoreadings
+from netatmoreadings import ClientAuth
+from netatmoreadings import netatmoreadings
+from netatmoreadings import DeviceList
 import traceback
 import socket
 import os
@@ -37,7 +40,9 @@ class KivyNetatmoClockApp(App):
     outsidetempminmax="0"
     humidity="0"
     running = True
+    pressurehumidity=0
     callnetatmotime=""
+    thilo_presence=None
     
 
     def on_start(self):
@@ -47,24 +52,58 @@ class KivyNetatmoClockApp(App):
         
     def callnetatmo(self,nap):
         while self.running:
+            print ("Calling FHEM at "+strftime('%H:%M:%S'))
+            
+            try:
+                server="http://16.22.34.138"
+                port="8083"
+                fhem_request="/fhem?cmd="
+                variable="thilo_presence"
+                #"http://16.22.34.138:8083/fhem?cmd=set%20thilo_dummy%20off"
+                #http://16.22.34.138:8083/fhem?cmd=%7BValue%28%22thilo_dummy%22%29%7D&XHR=1 -> on, XHR is no HTML
+                req = urllib.request.Request(server+":"+ port+fhem_request+"%7BValue%28%22"+variable+"%22%29%7D&XHR=1")
+                req.add_header("Content-Type","application/x-www-form-urlencoded;charset=utf-8")
+                #params = urllib.parse.urlencode(params).encode('utf-8')
+                resp = urllib.request.urlopen(req,None, 5).read(65535).decode("utf-8")
+                print ("FHEM Response "+resp)
+                if (resp=="present\n") :
+                    self.thilo_presence=True
+                    print ("Thilo set presence true")
+
+            except Exception as err:
+                print("Error occured {0}".format(err))
+                print (traceback.format_exc())
         
+            
             print("Calling Netatmo at "+strftime('%H:%M:%S'))
             self.callnetatmotime=strftime('%H:%M:%S')
 
             # Device-Liste von Netatmo abholen
             try:
-                authorization = lnetatmo.ClientAuth()
-                devList = lnetatmo.DeviceList(authorization)
+                
+                authorization = ClientAuth()
+                devList = DeviceList(authorization)
+                sd =devList.getStationdata (device_id='70:ee:50:17:4e:dc')
+                na=netatmoreadings(sd)
+                
+                
+                
+                print ("Outdoor Temperature "+str(na.na_TemperatureOutdoor)+" Humidity "+str(na.na_HumidityOutdoor)+ " Min "+str(na.na_TemperatureOutdoorMin) + " Max "+str(na.na_TemperatureOutdoorMax)+ " Trend "+str(na.na_TemperatureOutdoorTrend))
+                print ("Indoor Temperature "+str(na.na_Temperature) + ", Temp Trend " + str(na.na_TempTrend)+ " Temp min "+ str(na.na_MinTemp) + " Temp max " + str(na.na_MaxTemp)+ " Humidity "+str(na.na_Humidity)) 
+                print ("Rain "+ str(na.na_Rain)+ " last hour sum1 "+str(na.na_Rain_sum1)+" sum 24h "+str (na.na_Rain_sum24))
+                print ("Batteries  Outdoor "+str(na.na_battery_outdoor_percent)+ " Rain "+str(na.na_battery_rain_percent))
+
+
                 print("Connected to Netatmo")
                 # Funktionen um die ID von Modulen und Device zu ermitteln
-                print("DeviceList ")
-                print(devList.modulesNamesList())
+                #print("DeviceList ")
+                #print(devList.modulesNamesList())
                 # Niederschlag ist der Modulname meines Regenmessers
-                print("GardenTemp ")
-                print(devList.moduleByName('GardenTemp'))
-                print("--")
-                print("GardenRain ")
-                print(devList.moduleByName('GardenRain'))
+                #print("GardenTemp ")
+                ##print(devList.moduleByName('GardenTemp'))
+                #print("--")
+                #print("GardenRain ")
+                #print(devList.moduleByName('GardenRain'))
 
  
  
@@ -72,49 +111,25 @@ class KivyNetatmoClockApp(App):
                 ## Ermittlung der aktuellen Wetterdaten ---------------------------------------------
                 
                 # Aktuelle Aussentemperatur ausgeben
-                print("GardenTemperature ")
-                gardentemp=devList.lastData()['GardenTemp']['Temperature']
-                print("GardenTemperature called.")
+                #print("GardenTemperature ")
+                #gardentemp=devList.lastData()['GardenTemp']['Temperature']
+                #print("GardenTemperature called.")
             
         
-                # Wetterdaten des Vortages ermitteln: -----------------------------------------------
-                now = time.time()               # Von Jetzt
-                start = now - 2* 24 * 3600
-
-                #Ermittlung der Temperaturen als Liste
-                resp = devList.getMeasure( device_id='70:ee:50:17:4e:dc',      
-                                           module_id='02:00:00:17:d9:24',    
-                                           scale="1day",
-                                           mtype="min_temp,max_temp",
-                                           date_begin=start,
-                                           date_end=now)
- 
-                        # Extraieren von Zeit, minTemp und Maxtemp
-                result = [(int(k),v[0],v[1]) for k,v in resp['body'].items()]
-                        # Liste sortieren (nach Zeit, da erstes Element)
-                result.sort()
-        
-                messdatum = time.localtime(result[0][0])
-                #Ermittlung des Datums des Vortages der Min/Max Temperaturen vom Vortag
-                messdatum = time.localtime(result[0][0])
- 
-                #Ermittlung der Min- und Max-Temperaturen des Vortages
-                last_temp_min = result[0][1]
-                last_temp_max = result[0][2]
-
-            
                 #self.root.ids.time.text = strftime('[b]%H:%M[/b]:%S')+"   {:.2f}°C".format(devList.lastData()['GardenTemp']['Temperature'])
                 self.time_started=True
-                self.outsidetemp="   {:.2f}°C".format(devList.lastData()['GardenTemp']['Temperature'])
-                self.outsidetempminmax = "{:.2f}°C".format(devList.lastData()['GardenTemp']['min_temp']) +" - {:.2f}°C".format(devList.lastData()['GardenTemp']['max_temp'])+"    Gestern: "+" {:.2f}°C".format(last_temp_min) + " - {:.2f}°C".format(last_temp_max)
+                self.outsidetemp="   {:.2f}°C".format(na.na_TemperatureOutdoor)
+                self.outsidetempminmax = "Aussen Min {:.2f}°C".format(na.na_TemperatureOutdoorMin) +" - Max {:.2f}°C".format(na.na_TemperatureOutdoorMax)
+                self.pressurehumidity="Luftdruck   {:.2f}".format(na.na_Pressure)+" Feuchtigkeit {:.2f}%".format(na.na_HumidityOutdoor)
             
-                rain=devList.lastData()['GardenRain']['Rain']
-                sumrain24=devList.lastData()['GardenRain']['Rain']
+                rain=na.na_Rain
+                sumrain24=na.na_Rain_sum24
             
                 if rain > 0 or sumrain24 > 0 :
-                    self.humidity="Feuchtigkeit {:.2f}%".format(devList.lastData()['GardenTemp']['Humidity'])+"Regen {:.2f}".format(devList.lastData()['GardenRain']['Rain'])+"- 24h {:.2f}".format(devList.lastData()['GardenRain']['Rain'])
+                    self.rain=" Regen {:.2f} ".format(na.na_Rain)+"- 24h {:.2f}".format(na.na_Rain_sum24)
                 else:
-                    self.humidity="Feuchtigkeit {:.2f}%".format(devList.lastData()['GardenTemp']['Humidity'])
+                    pass
+                
                 
             #m, s = divmod(self.sw_seconds, 60)
             #           self.root.ids.stopwatch.text = ('%02d:%02d.[size=40]%02d[/size]' %
@@ -139,7 +154,7 @@ class KivyNetatmoClockApp(App):
             self.sw_started=True
         
 
-            time.sleep (60*60)
+            time.sleep (60)
         
     def update(self, nap):
         
@@ -152,7 +167,10 @@ class KivyNetatmoClockApp(App):
             self.time_started=True
             
             self.root.ids.outsidetempminmax.text = self.outsidetempminmax 
-            self.root.ids.humidity.text=self.humidity
+            self.root.ids.pressurehumidity.text=self.pressurehumidity
+            if self.thilo_presence :
+                self.root.ids.status.text="Thilo ist anwesend"
+            
 
         if self.time_started:
             self.root.ids.time.text = strftime('[b]%H:%M[/b]:%S')+ self.outsidetemp
